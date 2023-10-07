@@ -1,21 +1,31 @@
-# Use an official Ubuntu as the base image
-FROM ubuntu:20.04
+# Use an appropriate base image, such as CentOS, for your Docker container.
+# Choose an image that matches the OS requirements specified in the documentation.
+FROM centos:7
 
-# Install required dependencies
-RUN apt-get update && apt-get install -y \
+# Install necessary dependencies and set up Docker
+RUN yum update -y && yum install -y \
+    wget \
     curl \
-    docker.io \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && yum clean all
 
-# Download and install easypanel
-RUN curl -sSL https://get.easypanel.io | sh
+# Check if port 25 is already in use by postfix
+RUN netstat -lnp | grep 25 && \
+    systemctl stop postfix && \
+    systemctl disable postfix || true
 
-# Expose all required ports. Replace these with the actual required ports.
-EXPOSE 80 443 8080 3000
+# Download CyberPanel installation script
+RUN wget -O installer.sh https://mirror.cyberpanel.net/install-cn.sh
 
-# Set the entry point for your application
-ENTRYPOINT ["easypanel/easypanel", "setup"]
+# Make the installer script executable
+RUN chmod +x installer.sh
 
-# Specify any default command or arguments for the entry point
-CMD ["--rm", "-it", "-v", "/etc/easypanel:/etc/easypanel", "-v", "/var/run/docker.sock:/var/run/docker.sock:ro"]
+# Install CyberPanel
+RUN ./installer.sh
+
+# Expose the necessary ports
+EXPOSE 8090 80 443 21 25 587 465 110 143 993 53 53/udp 7080 40110-40210
+
+# Start the CyberPanel service
+CMD ["sh", "-c", "/usr/local/CyberPanel/bin/start.py"]
+
+# Optionally, add post-installation configuration if needed.
